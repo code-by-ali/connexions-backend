@@ -5,77 +5,45 @@ const router = express.Router();
 
 router.post("/send", async (req, res) => {
   try {
-    const { name, email, purpose, message } = req.body;
+    const { to, subject, html } = req.body;
 
-    // Validation
-    if (!name || !email || !message) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide name, email, and message",
-      });
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide a valid email address",
-      });
-    }
-
-    // Create transporter
     const transporter = nodemailer.createTransport({
-      host: "globalproperties.ae",
-      port: 465,
-      secure: true,
+      host: "mail.globalproperties.ae",
+      port: 465,           // Changed to number
+      secure: true,        // Changed to boolean
       auth: {
         user: "contact@globalproperties.ae",
         pass: "V10Y+,i%&9*,VX+=",
       },
+      tls: {
+        rejectUnauthorized: true,
+        minVersion: "TLSv1.2"
+      }
     });
 
-    // Prepare email subject
-    const subject = purpose
-      ? `Contact Form: ${purpose} - ${name}`
-      : `Contact Form: Message from ${name}`;
+    // Verify connection before sending
+    await transporter.verify();
 
-    // Simple text email content
-    const text = `
-New Contact Form Submission
-
-Name: ${name}
-Email: ${email}
-${purpose ? `Purpose: ${purpose}` : ""}
-
-Message:
-${message}
-
-This email was sent from GlobalProperties.ae contact form.
-    `;
-
-    // Send email
     const info = await transporter.sendMail({
-      from: '"GlobalProperties Contact" <contact@globalproperties.ae>',
-      to: `"nikhil@connexionsmobile.com <nikhil@connexionsmobile.com>"`, // Send to your own email
-      subject: subject,
-      text: text,
-      replyTo: email, // Allow easy reply to the sender
+      from: '"Global Properties" <contact@globalproperties.ae>', // Added sender name
+      to,
+      subject,
+      html,
+      text: html.replace(/<[^>]*>/g, ''), // Add plain text version
     });
 
-    console.log("✅ Email sent successfully:", info.messageId);
+    console.log("Email sent successfully:",  to);
 
     res.status(200).json({
       success: true,
-      message: "Thank you for contacting us! We'll get back to you soon.",
       messageId: info.messageId,
     });
   } catch (error) {
-    console.error("❌ Email sending failed:", error);
+    console.error("Email sending failed:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to send email. Please try again later.",
       error: error.message,
+      details: error.response || error.code, // More debugging info
     });
   }
 });
